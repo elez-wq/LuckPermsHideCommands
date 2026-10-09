@@ -29,6 +29,7 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	compileOnly "me.lucko:fabric-permissions-api:0.3.1"
 }
 
 processResources {
