@@ -1,30 +1,38 @@
-package com.example;
+package net.fabricmc.example;
 
 import net.fabricmc.api.ModInitializer;
-
-import net.minecraft.resources.Identifier;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import me.lucko.fabric.api.permissions.v0.Permissions;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.tree.CommandNode;
+import net.minecraft.server.command.ServerCommandSource;
+import java.util.function.Predicate;
 
 public class ExampleMod implements ModInitializer {
-	public static final String MOD_ID = "modid";
+    @Override
+    public void onInitialize() {
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            CommandDispatcher<ServerCommandSource> dispatcher = server.getCommandManager().getDispatcher();
+            for (CommandNode<ServerCommandSource> node : dispatcher.getRoot().getChildren()) {
+                wrapRequirement(node);
+            }
+        });
+    }
 
-	// This logger is used to write text to the console and the log file.
-	// It is considered best practice to use your mod id as the logger's name.
-	// That way, it's clear which mod wrote info, warnings, and errors.
-	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    private void wrapRequirement(CommandNode<ServerCommandSource> node) {
+        Predicate<ServerCommandSource> originalRequirement = node.getRequirement();
+        
+        node.setRequirement(source -> {
+            if (!source.isExecutedByPlayer()) return originalRequirement.test(source);
+            
+            String permissionNode = "minecraft.command." + node.getName();
+            boolean hasPerm = Permissions.check(source, permissionNode, false);
+            
+            return hasPerm;
+        });
 
-	@Override
-	public void onInitialize() {
-		// This code runs as soon as Minecraft is in a mod-load-ready state.
-		// However, some things (like resources) may still be uninitialized.
-		// Proceed with mild caution.
-
-		LOGGER.info("Hello Fabric world!");
-	}
-
-	public static Identifier id(String path) {
-		return Identifier.fromNamespaceAndPath(MOD_ID, path);
-	}
+        for (CommandNode<ServerCommandSource> child : node.getChildren()) {
+            wrapRequirement(child);
+        }
+    }
 }
